@@ -1,0 +1,39 @@
+import threading, time, json, os, urllib.request
+from flask import Flask, render_template_string
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8826721141:AAFsjcSS57Vbfao-yHbZOtuNtSUkQ1s57Zk")
+CHAT_ID = os.getenv("CHAT_ID", "528539420")
+app = Flask(name)
+last_sell=0; last_buy=0
+def send_tg(msg):
+    try:
+        data=json.dumps({"chat_id":CHAT_ID,"text":msg}).encode()
+        req=urllib.request.Request(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",data=data,headers={"Content-Type":"application/json"})
+        urllib.request.urlopen(req,timeout=10)
+        return True
+    except: return False
+def get_price():
+    try:
+        with urllib.request.urlopen("https://api.gold-api.com/price/XAU",timeout=10) as r:
+            return float(json.loads(r.read().decode()).get("price",0))
+    except: return 0
+def bot_loop():
+    global last_sell,last_buy
+    send_tg("🤖 Dashboard 24 Jam AKTIF di Render!\nMonitoring SELL $4358-4370 & BUY $4250-4275\nHP boleh mati, bot tetap jaga.")
+    while True:
+        try:
+            price=get_price(); now=time.time()
+            if 4358 <= price <= 4370 and now-last_sell>300:
+                send_tg(f"🔴 SELL ZONE MT5! Price: ${price} Zona: $4358-4370"); last_sell=now
+            if 4250 <= price <= 4275 and now-last_buy>300:
+                send_tg(f"🟢 BUY ZONE MT5! Price: ${price} Zona: $4250-4275"); last_buy=now
+        except: pass
+        time.sleep(60)
+HTML="""<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><title>XAUUSD MT5 24JAM</title></head><body style='background:#0a0a0a;color:#fff;font-family:Arial;padding:12px'><h3>XAUUSD MT5 24JAM - Render</h3><div id='price' style='font-size:36px;color:#D4AF37'>Loading...</div><button onclick="fetch('/api/test-telegram',{method:'POST'}).then(r=>r.json()).then(j=>alert(j.ok?'✅ Cek Telegram!':'Gagal'))" style='background:#D4AF37;padding:12px;width:100%;border:0;border-radius:10px;font-weight:bold'>🚀 TEST KIRIM TELEGRAM</button><script>setInterval(async()=>{let r=await fetch('https://api.gold-api.com/price/XAU');let j=await r.json();document.getElementById('price').innerText='$'+j.price},10000)</script></body></html>"""
+@app.route("/")
+def index(): return render_template_string(HTML)
+@app.route("/api/test-telegram",methods=["POST"])
+def api_test(): ok=send_tg(f"🤖 TEST dari Dashboard 24Jam! Harga: ${get_price()}"); return {"ok":ok}
+@app.route("/health")
+def health(): return {"status":"ok"}
+threading.Thread(target=bot_loop,daemon=True).start()
+if name=="main": app.run(host="0.0.0.0",port=int(os.environ.get("PORT",10000)))
