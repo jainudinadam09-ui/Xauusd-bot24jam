@@ -1,0 +1,52 @@
+CARA DEPLOY XAUUSD 24JAM KE RENDER
+=====================================
+
+ISI PAKET:
+- app.py ............. Server Flask + bot Telegram 24 jam
+- dashboard_a.html ... V1 XAUUSD A (RSI 15M) — tampil di "/"
+- dashboard_b.html ... V1 XAUUSD B (Dual RSI) — tampil di "/b"
+- requirements.txt ... Flask + gunicorn
+- render.yaml ........ Konfigurasi otomatis Render
+
+CARA 1 — VIA BLUEPRINT (paling cepat):
+1. Upload isi folder ini ke GitHub (repo baru, misal: xauusd-24jam)
+   - Bisa lewat web github.com: New repository > Upload files
+2. Di Render (dashboard.render.com):
+   - New > Blueprint > pilih repo tadi > Apply
+   - Render otomatis baca render.yaml
+3. Setelah deploy, buka Settings > Environment, isi:
+   - BOT_TOKEN = token bot Telegram kamu
+   - CHAT_ID = chat id kamu (sekarang default: 528539420)
+4. Selesai! Dashboard bisa dibuka 24 jam di URL:
+   - https://xauusd-24jam.onrender.com/   (versi A)
+   - https://xauusd-24jam.onrender.com/b  (versi B)
+   - https://xauusd-24jam.onrender.com/api/status (status bot)
+
+CARA 2 — MANUAL:
+1. Render > New > Web Service > connect repo GitHub
+2. Build Command: pip install -r requirements.txt
+3. Start Command: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
+   (PENTING: --workers 1, biar bot Telegram tidak dobel)
+4. Isi Environment Variables: BOT_TOKEN dan CHAT_ID
+5. Deploy
+
+CARA KERJA BOT (background thread):
+- Tiap 60 detik ambil harga XAU dari gold-api
+- Merakit candle 15M sendiri di server
+- Hitung RSI(9) Wilder (sama seperti dashboard)
+- Alert Telegram: RSI < 30 = BUY 🟢, RSI > 70 = SELL 🔴
+- Cooldown 15 menit antar alert sejenis
+- Catatan: butuh ~2,5 jam pertama untuk kumpul 10 candle
+  sebelum RSI valid (sebelum itu bot hanya standby)
+
+PENTING — RENDER GRATIS TIDUR:
+Paket gratis Render mematikan service setelah 15 menit tanpa
+pengunjung. Agar bot 24 jam nonstop:
+- Daftar gratis di uptimerobot.com
+- Tambah monitor: ping https://xauusd-24jam.onrender.com/health
+  tiap 5 menit → service tetap bangun terus
+- Atau upgrade ke Render Starter ($7/bln) biar tidak tidur
+
+TEST:
+- Buka /api/status untuk lihat RSI & candle yang terkumpul
+- POST ke /api/test-telegram untuk test kirim Telegram
